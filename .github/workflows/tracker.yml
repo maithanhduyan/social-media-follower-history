@@ -1,0 +1,57 @@
+name: Track X Followers
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # Chạy vào phút 0 của mỗi giờ (UTC)
+    - cron: "0 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: follower-tracker
+  cancel-in-progress: false
+
+jobs:
+  tracker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup Python
+        run: uv python install 3.13
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      - name: Run tracker
+        run: uv run python tracker.py
+
+      - name: Show CSV
+        run: |
+          echo "===== followers.csv ====="
+          cat followers.csv
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add followers.csv
+
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+
+          git commit -m "chore: update followers history"
+          git push
